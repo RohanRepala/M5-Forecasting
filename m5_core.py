@@ -57,13 +57,18 @@ def load_m5(data_path):
     day_cols = [c for c in header if c.startswith("d_")]
     sales = pd.read_csv(
         f"{data_path}/sales_train_evaluation.csv",
-        dtype={**{c: np.int16 for c in day_cols}, **{c: str for c in ID_COLS}},
+        dtype={**{c: np.int16 for c in day_cols}, **{c: str for c in ID_COLS if c in header}},
     )
-    meta = sales[ID_COLS].reset_index(drop=True)
+    meta = sales[[c for c in ID_COLS if c in sales.columns]].reset_index(drop=True)
+    if "id" not in meta.columns:  # some public mirrors of the data drop the id column
+        meta.insert(0, "id", meta["item_id"] + "_" + meta["store_id"] + "_evaluation")
     Y = sales[day_cols].to_numpy(dtype=np.float32)
     del sales
 
     calendar = pd.read_csv(f"{data_path}/calendar.csv", parse_dates=["date"])
+    if "d" not in calendar.columns:  # ... or the day label; d_1 is the first date
+        calendar = calendar.sort_values("date").reset_index(drop=True)
+        calendar["d"] = "d_" + (calendar.index + 1).astype(str)
     calendar["d_num"] = calendar["d"].str[2:].astype(int)
     calendar = calendar.sort_values("d_num").reset_index(drop=True)
 
@@ -222,6 +227,11 @@ class FeatureBuilder:
             codes = pd.Categorical(cal[c]).codes.astype(np.float32)
             codes[codes < 0] = np.nan
             self.events[c] = codes
+        # Demand moves the day before/after big holidays (e.g. the eve of Thanksgiving), so the
+        # model also sees the next and previous day's event; the calendar is known in advance.
+        ev = self.events["event_name_1"]
+        self.event_next = np.append(ev[1:], np.nan).astype(np.float32)
+        self.event_prev = np.insert(ev[:-1], 0, np.nan).astype(np.float32)
         states = pd.unique(meta["state_id"])
         snap = np.stack([cal[f"snap_{s}"].to_numpy(np.float32) for s in states])
         self.snap = snap[pd.Categorical(meta["state_id"], categories=states).codes]
@@ -240,7 +250,7 @@ class FeatureBuilder:
         self.weeks_since_release = day_week[None, :].astype(np.float32) - first_week[:, None]
 
         self.feature_names = [name for name, _ in self._columns(np.array([HORIZON]))]
-        self.categorical_features = STATIC_CATS + EVENT_CATS
+        self.categorical_features = STATIC_CATS + EVENT_CATS + ["event_next", "event_prev"]
 
     def on_sale(self, days):
         """Boolean (n_series, len(days)) mask: item had a sell price that day."""
@@ -256,6 +266,8 @@ class FeatureBuilder:
         yield "week", self.week[t]
         for c in EVENT_CATS:
             yield c, self.events[c][t]
+        yield "event_next", self.event_next[t]
+        yield "event_prev", self.event_prev[t]
         yield "snap", self.snap[:, t]
 
         price = self.P_day[:, t]
