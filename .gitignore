@@ -1,0 +1,12 @@
+# Outputs written by the notebooks
+figures/
+submission.csv
+lgbm_m5.txt
+metrics.json
+m5_data/
+# Vertex AI training package build files
+custom/
+custom.tar
+custom.tar.gz
+__pycache__/
+.ipynb_checkpoints/
