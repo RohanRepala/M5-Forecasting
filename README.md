@@ -17,7 +17,7 @@ Reproduce the WRMSSE metric over all 42,840 series of the 12-level hierarchy, an
 ## Running it
 
 - **Kaggle:** attach the competition data and run `exercise3_m5_forecasting.ipynb` (default path `/kaggle/input/m5-forecasting-accuracy`).
-- **Vertex AI Workbench / Colab / local:** set `M5_DATA_PATH` to a folder or `gs://` path with `sales_train_evaluation.csv`, `calendar.csv` and `sell_prices.csv`.
+- **Colab / Vertex AI Workbench / local:** the notebook downloads the data with `kagglehub` (needs a Kaggle API token and the competition rules accepted), or set `M5_DATA_PATH` to a folder or `gs://` path with `sales_train_evaluation.csv`, `calendar.csv` and `sell_prices.csv`.
 - **Quick pass:** `M5_FAST_MODE=1` uses a one-year training window and fewer boosting rounds.
 - **Outputs:** charts go to `figures/`, plus `submission.csv` and `lgbm_m5.txt` (the model).
 - **Vertex AI custom training:** open `m5_vertex_custom_training.ipynb` from this folder and fill in project, region and bucket.
